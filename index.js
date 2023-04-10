@@ -1,13 +1,16 @@
 require("dotenv").config();
-const twilioFromNumber = process.env.TWILIO_PHONE_NUMBER;
+
 const twilioServiceSid = process.env.TWILIO_SERVICE_SID;
 
 const yargs = require("yargs");
 const sqlite3 = require("sqlite3");
 const { open } = require("sqlite");
-const { sendSms } = require("./twilioClient");
-const { generateMessage } = require("./chatgptClient");
+
 const { parse } = require("date-fns");
+
+const { setupDb } = require("./db");
+const { startServer } = require("./server");
+const { addScheduledMessage, scheduleMessages } = require("./smsScheduler"); // Update this line
 
 const parseSendAtInput = (sendAt) => {
   if (sendAt === "now") {
@@ -24,70 +27,6 @@ const parseSendAtInput = (sendAt) => {
   } catch (error) {
     console.error("Invalid sendAt input format. Please use a Unix timestamp, 'now', or 'yyyy-MM-dd HH:mm:ss' format.");
     process.exit(1);
-  }
-};
-
-const setupDb = async () => {
-  const db = await open({
-    filename: "sms-scheduler.db",
-    driver: sqlite3.Database,
-  });
-
-  await db.exec(
-    `CREATE TABLE IF NOT EXISTS scheduled_sms (id INTEGER PRIMARY KEY AUTOINCREMENT, phone TEXT, message TEXT, send_at INTEGER)`
-  );
-
-  return db;
-};
-
-const addScheduledMessage = async (phone, message, sendAt) => {
-  const db = await setupDb();
-  const result = await db.run(
-    "INSERT INTO scheduled_sms (phone, message, send_at) VALUES (?, ?, ?)",
-    [phone, message, sendAt]
-  );
-  console.log(`Scheduled message added with ID ${result.lastID} and sendAt ${sendAt}`);
-};
-
-const scheduleMessages = async () => {
-  console.log("Checking for scheduled messages...");
-  const db = await setupDb();
-  const currentTime = Math.floor(Date.now() / 1000);
-  const messages = await db.all("SELECT * FROM scheduled_sms WHERE send_at <= ?", [currentTime]);
-
-  if (messages.length === 0) {
-    console.log("No messages to send at this time.");
-  } else {
-    console.log(`Found ${messages.length} messages to send.`);
-  }
-
-  for (const message of messages) {
-    if (message.message.startsWith("ai:")) {
-      const prompt = message.message.slice(3);
-      generateMessage(prompt, (err, aiMessage) => {
-        if (err) {
-          console.error(`Error generating AI message for ${message.phone}:`, err);
-          return;
-        }
-
-        sendSms(message.phone, aiMessage, twilioFromNumber, (err, result) => {
-          if (err) {
-            console.error(`Error sending AI message to ${message.phone}:`, err);
-          } else {
-            console.log(`AI message sent to ${message.phone}`);
-          }
-        });
-      });
-    } else {
-      sendSms(message.phone, message.message, twilioFromNumber, (err, result) => {
-        if (err) {
-          console.error(`Error sending message to ${message.phone}:`, err);
-        } else {
-          console.log(`Message sent to ${message.phone}`);
-        }
-      });
-    }
-    await db.run("DELETE FROM scheduled_sms WHERE id = ?", [message.id]);
   }
 };
 
@@ -131,6 +70,7 @@ yargs
       type: "string",
     },
   })
+  .command("server", "Run the SMS Scheduler web app")
   .example("node $0 add --phone \"+1234567890\" --message \"Hello, World!\" --sendAt 1672448399", "Schedule an SMS")
   .example("node $0 add --phone \"+1234567890\" --message \"ai: write a friendly merry christmas message in 160 characters.\" --sendAt \"2023-12-24 12:00:00\"", "Schedule an AI-generated SMS")
   .example("node $0 add --phone \"+1234567890\" --message \"Now its starting!\" --sendAt \"now\"", "Schedule an SMS to send ASAP")
@@ -179,3 +119,18 @@ if (argv._.includes("check-verify")) {
     }
   });
 }
+
+if (argv._.includes("server")) {
+  startServer();
+}
+
+
+module.exports = {
+  addScheduledMessage,
+  scheduleMessages,
+  getScheduledMessages: async () => {
+    const db = await setupDb();
+    const messages = await db.all("SELECT * FROM scheduled_sms");
+    return messages;
+  },
+};

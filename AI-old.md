@@ -2,6 +2,8 @@ write a node js application, which writes a sms to a phone umber which has been 
 this should be a CLI application. i also want to have cli commands to add new messages which should be sent scheduled. 
 also the cli command shows help how to use the application.
 when a message is added to schedule and containts "ai:" , everything after the "ai:" will be used as chatgpt prompt via  openai api and send as message instead, in realtime.
+also has a feature for adding a message to schedule where sendAt can be in human readable format, "now" for this exact moment, or a unix timestamp.
+
 a .env file which contains all the environment variables will be used.
 
 currently we have following files and contents:
@@ -42,15 +44,33 @@ module.exports = {
 index.js:
 ```
 require("dotenv").config();
+const twilioFromNumber = process.env.TWILIO_PHONE_NUMBER;
+const twilioServiceSid = process.env.TWILIO_SERVICE_SID;
 
 const yargs = require("yargs");
 const sqlite3 = require("sqlite3");
 const { open } = require("sqlite");
 const { sendSms } = require("./twilioClient");
 const { generateMessage } = require("./chatgptClient");
+const { parse } = require("date-fns");
 
-const twilioFromNumber = process.env.TWILIO_PHONE_NUMBER;
-const twilioServiceSid = process.env.TWILIO_SERVICE_SID;
+const parseSendAtInput = (sendAt) => {
+  if (sendAt === "now") {
+    return Math.floor(Date.now() / 1000);
+  }
+
+  if (/\d{10}/.test(sendAt)) {
+    return parseInt(sendAt, 10);
+  }
+
+  try {
+    const parsedDate = parse(sendAt, "yyyy-MM-dd HH:mm:ss", new Date());
+    return Math.floor(parsedDate.getTime() / 1000);
+  } catch (error) {
+    console.error("Invalid sendAt input format. Please use a Unix timestamp, 'now', or 'yyyy-MM-dd HH:mm:ss' format.");
+    process.exit(1);
+  }
+};
 
 const setupDb = async () => {
   const db = await open({
@@ -130,9 +150,9 @@ yargs
       type: "string",
     },
     sendAt: {
-      describe: "Unix timestamp to send the message",
+      describe: "Unix timestamp to send the message or 'now' or in date format like 2023-12-24 12:00:00",
       demandOption: true,
-      type: "number",
+      type: "string",
     },
   })
   .command("run", "Continuously check the schedule and send messages")
@@ -157,7 +177,8 @@ yargs
     },
   })
   .example("node $0 add --phone \"+1234567890\" --message \"Hello, World!\" --sendAt 1672448399", "Schedule an SMS")
-  .example("node $0 add --phone \"+1234567890\" --message \"ai: Tell me a joke.\" --sendAt 1672448399", "Schedule an AI-generated SMS")
+  .example("node $0 add --phone \"+1234567890\" --message \"ai: write a friendly merry christmas message in 160 characters.\" --sendAt \"2023-12-24 12:00:00\"", "Schedule an AI-generated SMS")
+  .example("node $0 add --phone \"+1234567890\" --message \"Now its starting!\" --sendAt \"now\"", "Schedule an SMS to send ASAP")
   .example("node $0 run", "Continuously check the schedule and send messages")
   .example("node $0 run-once", "Check the schedule and send messages once")
   .example("node $0 start-verify --phone \"+1234567890\"", "Start the phone verification process")
@@ -168,7 +189,8 @@ yargs
 const argv = yargs.argv;
 
 if (argv._.includes("add")) {
-  addScheduledMessage(argv.phone, argv.message, argv.sendAt);
+  const parsedSendAt = parseSendAtInput(argv.sendAt);
+  addScheduledMessage(argv.phone, argv.message, parsedSendAt);
 }
 
 if (argv._.includes("run")) {
@@ -228,7 +250,7 @@ package.json:
 }
 ```
 
-twitchClient.js:
+twilioClient.js:
 ```
 require("dotenv").config();
 
@@ -248,7 +270,7 @@ const sendSms = (to, body, from, callback) => {
       from: from,
     })
     .then((message) => {
-      console.log(`Message sent successfully to ${to} with SID ${message.sid} and content: ${message}`);
+      console.log(`Message sent successfully to ${to} with SID ${message.sid} and content: ${body}`);
       callback(null, message);
     })
     .catch((error) => {
@@ -278,5 +300,4 @@ module.exports = {
   startPhoneVerification,
   checkPhoneVerification,
 };
-
 ```

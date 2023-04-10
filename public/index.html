@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMS Scheduler</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css">
+</head>
+<body>
+    <div class="ui container">
+        <h1 class="ui header">SMS Scheduler</h1>
+        
+        <form id="scheduleForm" class="ui form">
+            <div class="field">
+                <label>Phone Number</label>
+                <input type="text" name="phone" placeholder="Phone Number" required>
+            </div>
+            <div class="field">
+                <label>Message</label>
+                <textarea name="message" placeholder="Message" required></textarea>
+            </div>
+            <div class="field">
+                <label>Send At</label>
+                <input type="datetime-local" name="sendAt" required>
+            </div>
+            <button class="ui primary button" type="submit">Schedule Message</button>
+        </form>
+
+        <h2 class="ui header">Scheduled Messages</h2>
+        <table id="messagesTable" class="ui celled table">
+            <thead>
+                <tr>
+                    <th>Phone Number</th>
+                    <th>Message</th>
+                    <th>Send At</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+<script>
+    const scheduleForm = document.getElementById("scheduleForm");
+    const messagesTable = document.getElementById("messagesTable");
+
+    scheduleForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const phone = document.querySelector("input[name='phone']").value;
+        const message = document.querySelector("textarea[name='message']").value;
+        const sendAt = document.querySelector("input[name='sendAt']").value;
+
+        const sendAtDate = new Date(sendAt);
+        const sendAtTimestamp = Math.floor(sendAtDate.getTime() / 1000);
+
+        await fetch("/schedule", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ phone, message, sendAt: sendAtTimestamp }),
+        });
+
+        scheduleForm.reset();
+        fetchScheduledMessages();
+    });
+
+    async function fetchScheduledMessages() {
+        const messages = await fetch("/messages").then((response) => response.json());
+        const tbody = messagesTable.querySelector("tbody");
+
+        tbody.innerHTML = "";
+
+        for (const message of messages) {
+            const row = document.createElement("tr");
+            const phoneCell = document.createElement("td");
+            phoneCell.textContent = message.phone;
+            row.appendChild(phoneCell);
+
+            const messageCell = document.createElement("td");
+            messageCell.textContent = message.message;
+            row.appendChild(messageCell);
+
+            const sendAtCell = document.createElement("td");
+            const sendAtDate = new Date(message.send_at * 1000);
+            sendAtCell.textContent = sendAtDate.toLocaleString();
+            row.appendChild(sendAtCell);
+
+            tbody.appendChild(row);
+        }
+    }
+
+    fetchScheduledMessages();
+</script>
+
+</body>
+</html>
