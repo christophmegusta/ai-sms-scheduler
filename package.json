@@ -1,0 +1,20 @@
+{
+  "name": "sms4",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "date-fns": "^2.29.3",    
+    "openai": "^3.2.1",
+    "sqlite": "^4.1.2",
+    "sqlite3": "^5.1.6",
+    "twilio": "^4.10.0",
+    "yargs": "^17.7.1"
+  }
+}
