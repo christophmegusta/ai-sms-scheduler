@@ -229,17 +229,30 @@ scheduleForm.addEventListener("submit", async (event) => {
     const phone = document.querySelector("input[name='phone']").value;
     const message = document.querySelector("textarea[name='message']").value;
     const sendAt = document.querySelector("input[name='sendAt']").value;
+    const messageId = scheduleForm.dataset.messageId;
 
     const sendAtDate = new Date(sendAt);
     const sendAtTimestamp = Math.floor(sendAtDate.getTime() / 1000);
 
-    await fetch("/schedule", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ phone, message, sendAt: sendAtTimestamp }),
-    });
+    if (messageId) {
+        await fetch("/saveScheduledMessage", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ id: messageId, phone, message, sendAt: sendAtTimestamp }),
+        });
+    } else {
+        await fetch("/schedule", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ phone, message, sendAt: sendAtTimestamp }),
+        });
+    }
+
+    delete scheduleForm.dataset.messageId;
 
     scheduleForm.reset();
     fetchScheduledMessages();
@@ -261,15 +274,54 @@ async function fetchScheduledMessages() {
         row.appendChild(messageCell);
 
         const sendAtCell = document.createElement("td");
-
-        // Convert the send_at value into a human-readable format
         const sendAtDate = new Date(message.send_at * 1000);
         sendAtCell.textContent = sendAtDate.toLocaleDateString() + ', ' + sendAtDate.toLocaleTimeString();
-        
         row.appendChild(sendAtCell);
+
+        const actionsCell = document.createElement("td");
+        const editButton = document.createElement("button");
+        editButton.textContent = "Edit";
+        editButton.classList.add("ui", "button", "mini");
+        editButton.onclick = () => editScheduledMessage(message);
+        actionsCell.appendChild(editButton);
+
+        const deleteButton = document.createElement("button");
+        deleteButton.textContent = "Delete";
+        deleteButton.classList.add("ui", "button", "mini", "negative");
+        deleteButton.onclick = () => deleteScheduledMessage(message.id);
+        actionsCell.appendChild(deleteButton);
+
+        row.appendChild(actionsCell);
 
         tbody.appendChild(row);
     }
+}
+
+function editScheduledMessage(message) {
+    scheduleForm.querySelector("input[name='phone']").value = message.phone;
+    scheduleForm.querySelector("textarea[name='message']").value = message.message;
+
+    const sendAtDate = new Date(message.send_at * 1000);
+    const timezoneOffset = sendAtDate.getTimezoneOffset() * 60 * 1000;
+    const adjustedTimestamp = sendAtDate.getTime() - timezoneOffset;
+
+    scheduleForm.querySelector("input[name='sendAt']").valueAsNumber = adjustedTimestamp;
+
+    // Save the ID of the message being edited
+    scheduleForm.dataset.messageId = message.id;
+}
+
+
+async function deleteScheduledMessage(id) {
+    await fetch("/deleteScheduledMessage", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id }),
+    });
+
+    fetchScheduledMessages();
 }
 
 fetchScheduledMessages();
@@ -303,7 +355,7 @@ public/index.html:
                 <label>Send At</label>
                 <input type="datetime-local" name="sendAt" required>
             </div>
-            <button class="ui primary button" type="submit">Schedule Message</button>
+            <button class="ui primary button" type="submit">Save Message</button>
         </form>
 
         <h2 class="ui header">Scheduled Messages</h2>
@@ -313,6 +365,7 @@ public/index.html:
                     <th>Phone Number</th>
                     <th>Message</th>
                     <th>Send At</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -339,7 +392,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 
-const { addScheduledMessage, getScheduledMessages } = require("./smsScheduler");
+const { addScheduledMessage, getScheduledMessages, saveScheduledMessage, deleteScheduledMessage } = require("./smsScheduler");
 
 
 const port = process.env.PORT || 3000;
@@ -361,6 +414,19 @@ app.post("/schedule", async (req, res) => {
   res.status(201).send(`Scheduled message added for ${phone} at ${sendAt}`);
 });
 
+app.post("/saveScheduledMessage", async (req, res) => {
+  const { id, phone, message, sendAt } = req.body;
+  await saveScheduledMessage(id, phone, message, sendAt);
+  res.status(201).send(`Scheduled message saved for ${id} ${phone} at ${sendAt}`);
+});
+
+app.post("/deleteScheduledMessage", async (req, res) => {
+  const { id } = req.body;
+  await deleteScheduledMessage(id);
+  res.status(201).send(`Scheduled message deleted for ${id}`);
+});
+  
+
 function startServer() {
   app.listen(port, () => {
     console.log(`SMS Scheduler web app listening at http://localhost:${port}`);
@@ -378,7 +444,7 @@ smsScheduler.js:
 require("dotenv").config();
 const { parse } = require("date-fns");
 
-const { setupDb, getDb } = require("./db");
+const { getDb } = require("./db");
 const { sendSms } = require("./twilioClient");
 const { generateMessage } = require("./chatgptClient");
 
@@ -410,7 +476,7 @@ function parseSendAt(sendAt) {
 async function addScheduledMessage(phone, message, sendAt) {
   const parsedSendAt = parseSendAt(sendAt);
 
-  const db = await setupDb();
+  const db = await getDb();
 
   const result = await db.run(
     "INSERT INTO scheduled_sms (phone, message, send_at) VALUES (?, ?, ?)",
@@ -419,8 +485,30 @@ async function addScheduledMessage(phone, message, sendAt) {
   console.log(`Scheduled message added with ID ${result.lastID} and sendAt ${parsedSendAt}`);
 }
 
+async function saveScheduledMessage(id, phone, message, sendAt) {
+  const parsedSendAt = parseSendAt(sendAt);
+
+  const db = await getDb();
+
+  const result = await db.run(
+    "UPDATE scheduled_sms SET phone = ?, message = ?, send_at = ? WHERE id = ?",
+    [phone, message, parsedSendAt, id]
+  );
+  console.log(`Scheduled message saved with ID ${id} and sendAt ${parsedSendAt}`);
+}
+
+async function deleteScheduledMessage(id) {
+  const db = await getDb();
+
+  const result = await db.run(
+    "DELETE FROM scheduled_sms WHERE id = ?",
+    [id]
+  );
+  console.log(`Scheduled message deleted with ID ${id}`);
+}
+
 async function scheduleMessages() {
-  const db = await setupDb();
+  const db = await getDb();
 
   const messages = await getScheduledMessagesBeforeTime();
   if( messages?.length !== 0 ) console.log(`\nFound ${messages.length} messages to send.`);
@@ -453,11 +541,6 @@ async function getScheduledMessages() {
   return messages;
 }
 
-async function getScheduledMessagesAsJSDate() {
-  const messages = await getScheduledMessages();
-  return messages.map( message => message.sendAt = new Date(message.send_at * 1000) );
-}
-
 async function getScheduledMessagesBeforeTime(beforeTime) {
   const currentTime = Math.floor(Date.now() / 1000);
   const time = beforeTime || currentTime;
@@ -471,8 +554,9 @@ async function getScheduledMessagesBeforeTime(beforeTime) {
 module.exports = {
   addScheduledMessage,
   scheduleMessages,
+  saveScheduledMessage,
+  deleteScheduledMessage,
   getScheduledMessages,
-  getScheduledMessagesAsJSDate,
   getScheduledMessagesBeforeTime
 };
 ```
