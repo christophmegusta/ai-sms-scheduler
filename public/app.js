@@ -73,6 +73,8 @@ async function fetchScheduledMessages() {
 
         tbody.appendChild(row);
     }
+
+    newScheduledMessage();
 }
 
 function editScheduledMessage(message) {
@@ -87,6 +89,17 @@ function editScheduledMessage(message) {
 
     // Save the ID of the message being edited
     scheduleForm.dataset.messageId = message.id;
+}
+
+function newScheduledMessage() {
+    scheduleForm.querySelector("input[name='phone']").value = "";
+    scheduleForm.querySelector("textarea[name='message']").value = "";
+
+    const now = new Date();
+    const timezoneOffset = now.getTimezoneOffset() * 60 * 1000; // Offset in milliseconds
+    const localNow = new Date(now.getTime() - timezoneOffset);
+    const formattedDate = localNow.toISOString().slice(0, 16);
+    scheduleForm.querySelector("input[name='sendAt']").value = formattedDate;
 }
 
 
