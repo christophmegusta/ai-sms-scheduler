@@ -76,11 +76,6 @@ async function getScheduledMessages() {
   return messages;
 }
 
-async function getScheduledMessagesAsJSDate() {
-  const messages = await getScheduledMessages();
-  return messages.map( message => message.sendAt = new Date(message.send_at * 1000) );
-}
-
 async function getScheduledMessagesBeforeTime(beforeTime) {
   const currentTime = Math.floor(Date.now() / 1000);
   const time = beforeTime || currentTime;
@@ -95,6 +90,5 @@ module.exports = {
   addScheduledMessage,
   scheduleMessages,
   getScheduledMessages,
-  getScheduledMessagesAsJSDate,
   getScheduledMessagesBeforeTime
 };
