@@ -1,13 +1,20 @@
-const { open } = require("sqlite");
+const sqlite = require("sqlite");
 const sqlite3 = require("sqlite3");
 
-const setupDb = async () => {
-  const db = await open({
+// get db instance
+const getDb = async () => {
+  const db = await sqlite.open({
     filename: "sms-scheduler.db",
     driver: sqlite3.Database,
   });
 
-  await db.exec(
+  return db;
+};
+
+const setupDb = async () => {
+  const db = await getDb();
+
+  db.exec(
     `CREATE TABLE IF NOT EXISTS scheduled_sms (id INTEGER PRIMARY KEY AUTOINCREMENT, phone TEXT, message TEXT, send_at 
 INTEGER)`
   );
@@ -15,7 +22,8 @@ INTEGER)`
   return db;
 };
 
+
 module.exports = {
   setupDb,
+  getDb
 };
-

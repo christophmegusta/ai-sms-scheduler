@@ -1,71 +1,100 @@
-const sqlite3 = require("sqlite3");
-const { open } = require("sqlite");
+require("dotenv").config();
 const { parse } = require("date-fns");
 
-const { setupDb } = require("./db");
+const { setupDb, getDb } = require("./db");
 const { sendSms } = require("./twilioClient");
 const { generateMessage } = require("./chatgptClient");
 
 const twilioFromNumber = process.env.TWILIO_PHONE_NUMBER;
 
-const addScheduledMessage = async (phone, message, sendAt) => {
+
+function parseSendAt(sendAt) {
+  if (sendAt === "now") {
+    return Math.floor(Date.now() / 1000);
+  }
+
+  if (/\d{14}/.test(sendAt)) {
+    return Math.floor(parseInt(sendAt, 14) / 1000);
+  }
+
+  if (/\d{10}/.test(sendAt)) {
+    return parseInt(sendAt, 10);
+  }
+
+  try {
+    const parsedDate = parse(sendAt, "yyyy-MM-dd HH:mm:ss", new Date());
+    return Math.floor(parsedDate.getTime() / 1000);
+  } catch (error) {
+    console.error("Invalid sendAt input format. Please use a Unix timestamp, 'now', or 'yyyy-MM-dd HH:mm:ss' format.");
+    throw error;
+  }
+}
+
+async function addScheduledMessage(phone, message, sendAt) {
+  const parsedSendAt = parseSendAt(sendAt);
+
   const db = await setupDb();
+
   const result = await db.run(
     "INSERT INTO scheduled_sms (phone, message, send_at) VALUES (?, ?, ?)",
-    [phone, message, sendAt]
+    [phone, message, parsedSendAt]
   );
-  console.log(`Scheduled message added with ID ${result.lastID} and sendAt ${sendAt}`);
-};
+  console.log(`Scheduled message added with ID ${result.lastID} and sendAt ${parsedSendAt}`);
+}
 
-const scheduleMessages = async () => {
-  console.log("Checking for scheduled messages...");
+async function scheduleMessages() {
   const db = await setupDb();
-  const currentTime = Math.floor(Date.now() / 1000);
-  const messages = await db.all("SELECT * FROM scheduled_sms WHERE send_at <= ?", [currentTime]);
 
-  if (messages.length === 0) {
-    console.log("No messages to send at this time.");
-  } else {
-    console.log(`Found ${messages.length} messages to send.`);
-  }
+  const messages = await getScheduledMessagesBeforeTime();
+  if( messages?.length !== 0 ) console.log(`\nFound ${messages.length} messages to send.`);
 
   for (const message of messages) {
-    if (message.message.startsWith("ai:")) {
-      const prompt = message.message.slice(3);
-      generateMessage(prompt, (err, aiMessage) => {
-        if (err) {
-          console.error(`Error generating AI message for ${message.phone}:`, err);
-          return;
-        }
+    try {
+      let parsedMessage = message.message;
+      if (message.message.startsWith("ai:")) {
+        const prompt = message.message.slice(3);
+        parsedMessage = await generateMessage(prompt);
+      }
 
-        sendSms(message.phone, aiMessage, twilioFromNumber, (err, result) => {
-          if (err) {
-            console.error(`Error sending AI message to ${message.phone}:`, err);
-          } else {
-            console.log(`AI message sent to ${message.phone}`);
-          }
-        });
-      });
-    } else {
-      sendSms(message.phone, message.message, twilioFromNumber, (err, result) => {
-        if (err) {
-          console.error(`Error sending message to ${message.phone}:`, err);
-        } else {
-          console.log(`Message sent to ${message.phone}`);
-        }
-      });
+      await sendSms(message.phone, parsedMessage, twilioFromNumber);
+      await db.run("DELETE FROM scheduled_sms WHERE id = ?", [message.id]);
+
+    } catch (error) {
+      console.error(`Error sending message ${message.id} from ${message.phone}: ${error.message}`);
     }
-    await db.run("DELETE FROM scheduled_sms WHERE id = ?", [message.id]);
   }
-};
+}
+
+async function getScheduledMessages() {
+  const db = await getDb();
+  const messages = await db.all("SELECT * FROM scheduled_sms");
+  // convert messages sendAt to js date
+  messages.forEach(message => {
+    message.sendAt = new Date(message.send_at * 1000);
+  });
+
+  return messages;
+}
+
+async function getScheduledMessagesAsJSDate() {
+  const messages = await getScheduledMessages();
+  return messages.map( message => message.sendAt = new Date(message.send_at * 1000) );
+}
+
+async function getScheduledMessagesBeforeTime(beforeTime) {
+  const currentTime = Math.floor(Date.now() / 1000);
+  const time = beforeTime || currentTime;
+
+  const db = await getDb();
+  const messages = await db.all("SELECT * FROM scheduled_sms WHERE send_at <= ?", [time]);
+  return messages;
+}
+
 
 module.exports = {
   addScheduledMessage,
   scheduleMessages,
-  getScheduledMessages: async () => {
-    const db = await setupDb();
-    const messages = await db.all("SELECT * FROM scheduled_sms");
-    return messages;
-  },
+  getScheduledMessages,
+  getScheduledMessagesAsJSDate,
+  getScheduledMessagesBeforeTime
 };
-

@@ -1,12 +1,13 @@
 require("dotenv").config();
 const { Configuration, OpenAIApi } = require("openai");
 
+
 const configuration = new Configuration({
   apiKey: process.env.OPENAI_API_KEY,
 });
 const openai = new OpenAIApi(configuration);
 
-const generateMessage = async (prompt, callback) => {
+async function generateMessage(prompt) {
   try {
     const response = await openai.createCompletion({
       model: "text-davinci-003",
@@ -18,11 +19,12 @@ const generateMessage = async (prompt, callback) => {
     });
 
     const message = response.data.choices[0].text.trim();
-    callback(null, message);
+    return message;
   } catch (error) {
-    callback(error, null);
+    throw error;
   }
-};
+}
+
 
 module.exports = {
   generateMessage,

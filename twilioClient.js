@@ -1,15 +1,14 @@
 require("dotenv").config();
-
 const twilio = require("twilio");
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 
+
 const client = new twilio(accountSid, authToken);
 
 const sendSms = (to, body, from, callback) => {
-  console.log(`Attempting to send message to ${to}`);
-  client.messages
+  return client.messages
     .create({
       body: body,
       to: to,
@@ -17,11 +16,11 @@ const sendSms = (to, body, from, callback) => {
     })
     .then((message) => {
       console.log(`Message sent successfully to ${to} with SID ${message.sid} and content: ${body}`);
-      callback(null, message);
+      if(callback) callback(null, message);
     })
     .catch((error) => {
       console.error(`Failed to send message to ${to}`);
-      callback(error, null);
+      if(callback) callback(error, null);
     });
 };
 
@@ -40,6 +39,7 @@ const checkPhoneVerification = (phoneNumber, serviceSid, token, callback) => {
     .then((verification_check) => callback(null, verification_check))
     .catch((error) => callback(error, null));
 };
+
 
 module.exports = {
   sendSms,

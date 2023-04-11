@@ -1,34 +1,12 @@
 require("dotenv").config();
+const yargs = require("yargs");
+
+const { startServer } = require("./server");
+const { addScheduledMessage, scheduleMessages } = require("./smsScheduler");
+const { setupDb } = require("./db");
 
 const twilioServiceSid = process.env.TWILIO_SERVICE_SID;
 
-const yargs = require("yargs");
-const sqlite3 = require("sqlite3");
-const { open } = require("sqlite");
-
-const { parse } = require("date-fns");
-
-const { setupDb } = require("./db");
-const { startServer } = require("./server");
-const { addScheduledMessage, scheduleMessages } = require("./smsScheduler"); // Update this line
-
-const parseSendAtInput = (sendAt) => {
-  if (sendAt === "now") {
-    return Math.floor(Date.now() / 1000);
-  }
-
-  if (/\d{10}/.test(sendAt)) {
-    return parseInt(sendAt, 10);
-  }
-
-  try {
-    const parsedDate = parse(sendAt, "yyyy-MM-dd HH:mm:ss", new Date());
-    return Math.floor(parsedDate.getTime() / 1000);
-  } catch (error) {
-    console.error("Invalid sendAt input format. Please use a Unix timestamp, 'now', or 'yyyy-MM-dd HH:mm:ss' format.");
-    process.exit(1);
-  }
-};
 
 yargs
   .usage("Usage: $0 <command> [options]")
@@ -81,11 +59,13 @@ yargs
   .help()
   .alias("help", "h").argv;
 
+
 const argv = yargs.argv;
 
+setupDb();
+
 if (argv._.includes("add")) {
-  const parsedSendAt = parseSendAtInput(argv.sendAt);
-  addScheduledMessage(argv.phone, argv.message, parsedSendAt);
+  addScheduledMessage(argv.phone, argv.message, argv.sendAt);
 }
 
 if (argv._.includes("run")) {
@@ -123,14 +103,3 @@ if (argv._.includes("check-verify")) {
 if (argv._.includes("server")) {
   startServer();
 }
-
-
-module.exports = {
-  addScheduledMessage,
-  scheduleMessages,
-  getScheduledMessages: async () => {
-    const db = await setupDb();
-    const messages = await db.all("SELECT * FROM scheduled_sms");
-    return messages;
-  },
-};
