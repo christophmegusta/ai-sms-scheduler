@@ -5,6 +5,16 @@ install node packages:
 npm install
 ```
 
+create .env file and fill the required values in
+```
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_PHONE_NUMBER=
+TWILIO_SERVICE_SID=#optional
+OPENAI_API_KEY=
+```
+
+
 run server with
 ```
 npm start server
