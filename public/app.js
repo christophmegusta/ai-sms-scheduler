@@ -7,17 +7,30 @@ scheduleForm.addEventListener("submit", async (event) => {
     const phone = document.querySelector("input[name='phone']").value;
     const message = document.querySelector("textarea[name='message']").value;
     const sendAt = document.querySelector("input[name='sendAt']").value;
+    const messageId = scheduleForm.dataset.messageId;
 
     const sendAtDate = new Date(sendAt);
     const sendAtTimestamp = Math.floor(sendAtDate.getTime() / 1000);
 
-    await fetch("/schedule", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ phone, message, sendAt: sendAtTimestamp }),
-    });
+    if (messageId) {
+        await fetch("/saveScheduledMessage", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ id: messageId, phone, message, sendAt: sendAtTimestamp }),
+        });
+    } else {
+        await fetch("/schedule", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ phone, message, sendAt: sendAtTimestamp }),
+        });
+    }
+
+    delete scheduleForm.dataset.messageId;
 
     scheduleForm.reset();
     fetchScheduledMessages();
@@ -39,15 +52,54 @@ async function fetchScheduledMessages() {
         row.appendChild(messageCell);
 
         const sendAtCell = document.createElement("td");
-
-        // Convert the send_at value into a human-readable format
         const sendAtDate = new Date(message.send_at * 1000);
         sendAtCell.textContent = sendAtDate.toLocaleDateString() + ', ' + sendAtDate.toLocaleTimeString();
-        
         row.appendChild(sendAtCell);
+
+        const actionsCell = document.createElement("td");
+        const editButton = document.createElement("button");
+        editButton.textContent = "Edit";
+        editButton.classList.add("ui", "button", "mini");
+        editButton.onclick = () => editScheduledMessage(message);
+        actionsCell.appendChild(editButton);
+
+        const deleteButton = document.createElement("button");
+        deleteButton.textContent = "Delete";
+        deleteButton.classList.add("ui", "button", "mini", "negative");
+        deleteButton.onclick = () => deleteScheduledMessage(message.id);
+        actionsCell.appendChild(deleteButton);
+
+        row.appendChild(actionsCell);
 
         tbody.appendChild(row);
     }
+}
+
+function editScheduledMessage(message) {
+    scheduleForm.querySelector("input[name='phone']").value = message.phone;
+    scheduleForm.querySelector("textarea[name='message']").value = message.message;
+
+    const sendAtDate = new Date(message.send_at * 1000);
+    const timezoneOffset = sendAtDate.getTimezoneOffset() * 60 * 1000;
+    const adjustedTimestamp = sendAtDate.getTime() - timezoneOffset;
+
+    scheduleForm.querySelector("input[name='sendAt']").valueAsNumber = adjustedTimestamp;
+
+    // Save the ID of the message being edited
+    scheduleForm.dataset.messageId = message.id;
+}
+
+
+async function deleteScheduledMessage(id) {
+    await fetch("/deleteScheduledMessage", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id }),
+    });
+
+    fetchScheduledMessages();
 }
 
 fetchScheduledMessages();

@@ -1,7 +1,7 @@
 require("dotenv").config();
 const { parse } = require("date-fns");
 
-const { setupDb, getDb } = require("./db");
+const { getDb } = require("./db");
 const { sendSms } = require("./twilioClient");
 const { generateMessage } = require("./chatgptClient");
 
@@ -33,7 +33,7 @@ function parseSendAt(sendAt) {
 async function addScheduledMessage(phone, message, sendAt) {
   const parsedSendAt = parseSendAt(sendAt);
 
-  const db = await setupDb();
+  const db = await getDb();
 
   const result = await db.run(
     "INSERT INTO scheduled_sms (phone, message, send_at) VALUES (?, ?, ?)",
@@ -42,8 +42,30 @@ async function addScheduledMessage(phone, message, sendAt) {
   console.log(`Scheduled message added with ID ${result.lastID} and sendAt ${parsedSendAt}`);
 }
 
+async function saveScheduledMessage(id, phone, message, sendAt) {
+  const parsedSendAt = parseSendAt(sendAt);
+
+  const db = await getDb();
+
+  const result = await db.run(
+    "UPDATE scheduled_sms SET phone = ?, message = ?, send_at = ? WHERE id = ?",
+    [phone, message, parsedSendAt, id]
+  );
+  console.log(`Scheduled message saved with ID ${id} and sendAt ${parsedSendAt}`);
+}
+
+async function deleteScheduledMessage(id) {
+  const db = await getDb();
+
+  const result = await db.run(
+    "DELETE FROM scheduled_sms WHERE id = ?",
+    [id]
+  );
+  console.log(`Scheduled message deleted with ID ${id}`);
+}
+
 async function scheduleMessages() {
-  const db = await setupDb();
+  const db = await getDb();
 
   const messages = await getScheduledMessagesBeforeTime();
   if( messages?.length !== 0 ) console.log(`\nFound ${messages.length} messages to send.`);
@@ -89,6 +111,8 @@ async function getScheduledMessagesBeforeTime(beforeTime) {
 module.exports = {
   addScheduledMessage,
   scheduleMessages,
+  saveScheduledMessage,
+  deleteScheduledMessage,
   getScheduledMessages,
   getScheduledMessagesBeforeTime
 };

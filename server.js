@@ -3,7 +3,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 
-const { addScheduledMessage, getScheduledMessages } = require("./smsScheduler");
+const { addScheduledMessage, getScheduledMessages, saveScheduledMessage, deleteScheduledMessage } = require("./smsScheduler");
 
 
 const port = process.env.PORT || 3000;
@@ -24,6 +24,19 @@ app.post("/schedule", async (req, res) => {
   await addScheduledMessage(phone, message, sendAt);
   res.status(201).send(`Scheduled message added for ${phone} at ${sendAt}`);
 });
+
+app.post("/saveScheduledMessage", async (req, res) => {
+  const { id, phone, message, sendAt } = req.body;
+  await saveScheduledMessage(id, phone, message, sendAt);
+  res.status(201).send(`Scheduled message saved for ${id} ${phone} at ${sendAt}`);
+});
+
+app.post("/deleteScheduledMessage", async (req, res) => {
+  const { id } = req.body;
+  await deleteScheduledMessage(id);
+  res.status(201).send(`Scheduled message deleted for ${id}`);
+});
+  
 
 function startServer() {
   app.listen(port, () => {
