@@ -20,14 +20,14 @@ app.get("/messages", async (req, res) => {
 });
 
 app.post("/schedule", async (req, res) => {
-  const { phone, message, sendAt } = req.body;
-  await addScheduledMessage(phone, message, sendAt);
+  const { phone, message, sendAt, recurrence } = req.body;
+  await addScheduledMessage(phone, message, sendAt, recurrence);
   res.status(201).send(`Scheduled message added for ${phone} at ${sendAt}`);
 });
 
 app.post("/saveScheduledMessage", async (req, res) => {
-  const { id, phone, message, sendAt } = req.body;
-  await saveScheduledMessage(id, phone, message, sendAt);
+  const { id, phone, message, sendAt, recurrence } = req.body;
+  await saveScheduledMessage(id, phone, message, sendAt, recurrence);
   res.status(201).send(`Scheduled message saved for ${id} ${phone} at ${sendAt}`);
 });
 

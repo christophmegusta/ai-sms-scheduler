@@ -1,5 +1,6 @@
 require("dotenv").config();
 const { parse } = require("date-fns");
+const moment = require("moment");
 
 const { getDb } = require("./db");
 const { sendSms } = require("./twilioClient");
@@ -30,26 +31,26 @@ function parseSendAt(sendAt) {
   }
 }
 
-async function addScheduledMessage(phone, message, sendAt) {
+async function addScheduledMessage(phone, message, sendAt, recurrence) {
   const parsedSendAt = parseSendAt(sendAt);
 
   const db = await getDb();
 
   const result = await db.run(
-    "INSERT INTO scheduled_sms (phone, message, send_at) VALUES (?, ?, ?)",
-    [phone, message, parsedSendAt]
+    "INSERT INTO scheduled_sms (phone, message, send_at, recurrence) VALUES (?, ?, ?, ?)",
+    [phone, message, parsedSendAt, recurrence]
   );
   console.log(`Scheduled message added with ID ${result.lastID} and sendAt ${parsedSendAt}`);
 }
 
-async function saveScheduledMessage(id, phone, message, sendAt) {
+async function saveScheduledMessage(id, phone, message, sendAt, recurrence) {
   const parsedSendAt = parseSendAt(sendAt);
 
   const db = await getDb();
 
   const result = await db.run(
-    "UPDATE scheduled_sms SET phone = ?, message = ?, send_at = ? WHERE id = ?",
-    [phone, message, parsedSendAt, id]
+    "UPDATE scheduled_sms SET phone = ?, message = ?, send_at = ?, recurrence = ? WHERE id = ?",
+    [phone, message, parsedSendAt, recurrence, id]
   );
   console.log(`Scheduled message saved with ID ${id} and sendAt ${parsedSendAt}`);
 }
@@ -68,7 +69,7 @@ async function scheduleMessages() {
   const db = await getDb();
 
   const messages = await getScheduledMessagesBeforeTime();
-  if( messages?.length !== 0 ) console.log(`\nFound ${messages.length} messages to send.`);
+  if (messages?.length !== 0) console.log(`\nFound ${messages.length} messages to send.`);
 
   for (const message of messages) {
     try {
@@ -79,10 +80,39 @@ async function scheduleMessages() {
       }
 
       await sendSms(message.phone, parsedMessage, twilioFromNumber);
-      await db.run("DELETE FROM scheduled_sms WHERE id = ?", [message.id]);
 
+      if (message.recurrence !== "once") {
+        let recurringDuration = null;
+        switch (message.recurrence) {
+          case "daily":
+            recurringDuration = { value: 1, unit: "days" };
+            break;
+          case "weekly":
+            recurringDuration = { value: 1, unit: "weeks" };
+            break;
+          case "monthly":
+            recurringDuration = { value: 1, unit: "months" };
+            break;
+          case "yearly":
+            recurringDuration = { value: 1, unit: "years" };
+            break;
+        }
+
+        if (recurringDuration) {
+          const newSendAt = moment
+            .unix(message.send_at)
+            .add(recurringDuration.value, recurringDuration.unit)
+            .unix();
+
+          // Update send_at for the next scheduled message
+          await saveScheduledMessage(message.id, message.phone, message.message, newSendAt, message.recurrence);
+        }
+      } else {
+        // Delete the scheduled message if it is set to 'once'
+        await deleteScheduledMessage(message.id);
+      }
     } catch (error) {
-      console.error(`Error sending message ${message.id} from ${message.phone}: ${error.message}`);
+      console.error(`Error sending message to ${message.phone}:`, error);
     }
   }
 }

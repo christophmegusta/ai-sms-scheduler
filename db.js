@@ -15,8 +15,12 @@ const setupDb = async () => {
   const db = await getDb();
 
   db.exec(
-    `CREATE TABLE IF NOT EXISTS scheduled_sms (id INTEGER PRIMARY KEY AUTOINCREMENT, phone TEXT, message TEXT, send_at 
-INTEGER)`
+    `CREATE TABLE IF NOT EXISTS scheduled_sms (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      phone TEXT,
+      message TEXT,
+      send_at INTEGER,
+      recurrence TEXT)`
   );
 
   return db;

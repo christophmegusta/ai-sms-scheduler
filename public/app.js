@@ -7,6 +7,7 @@ scheduleForm.addEventListener("submit", async (event) => {
     const phone = document.querySelector("input[name='phone']").value;
     const message = document.querySelector("textarea[name='message']").value;
     const sendAt = document.querySelector("input[name='sendAt']").value;
+    const recurrence = document.querySelector("select[name='recurrence']").value;
     const messageId = scheduleForm.dataset.messageId;
 
     const sendAtDate = new Date(sendAt);
@@ -18,7 +19,7 @@ scheduleForm.addEventListener("submit", async (event) => {
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ id: messageId, phone, message, sendAt: sendAtTimestamp }),
+            body: JSON.stringify({ id: messageId, phone, message, sendAt: sendAtTimestamp, recurrence }),
         });
     } else {
         await fetch("/schedule", {
@@ -26,7 +27,7 @@ scheduleForm.addEventListener("submit", async (event) => {
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ phone, message, sendAt: sendAtTimestamp }),
+            body: JSON.stringify({ phone, message, sendAt: sendAtTimestamp, recurrence }),
         });
     }
 

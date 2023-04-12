@@ -24,6 +24,16 @@
                 <label>Send At</label>
                 <input type="datetime-local" name="sendAt" required>
             </div>
+            <div class="field">
+                <label>Recurrence</label>
+                <select name="recurrence" required>
+                    <option value="once">Once</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="yearly">Yearly</option>
+                </select>
+            </div>            
             <button class="ui primary button" type="submit">Save Message</button>
         </form>
 
