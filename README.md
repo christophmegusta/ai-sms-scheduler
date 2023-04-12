@@ -1,6 +1,15 @@
-# sms scheduler
+# ai sms scheduler
 
-install node packages:
+schedule sms messages and let ai (openai's chatgpt) write it.
+by starting a message with "ai:" the program will treat the parts following the "ai:" as prompt for chatgpt and will send the generated output then. if the message does not start with "ai:" it will be sent as is without ai involvement.
+
+to run this software the `npm start run` scheduler should be running in the background or `npm start run-once` must be frequently executed by a CRON job like every 5 minutes. this will check if there are any messages due and will send those.
+
+messages can be scheduled manually in the CLI with `npm start add ...` or the webinterface at http://localhost:3000 can be used after starting the server with `npm start server`.
+
+
+## Prerequesites and setup
+install node packages and dependencies:
 ```
 npm install
 ```
@@ -24,7 +33,9 @@ access in browser with http://127.0.0.1:3000
 
 run cli tool to send sms
 ```
-npm start run
+npm start run #in a loop
+# or
+npm start run-once #one time
 ```
 
 add messages to schedule with
@@ -34,7 +45,7 @@ npm start add --phone "+1234567890" --message "ai: write a friendly merry christ
 ```
 
 
-Usage Instructions
+## Usage Instructions
 ```
 Usage: node index.js <command> [options]
 
@@ -70,3 +81,9 @@ Examples:
   node index.js check-verify --phone        Check the verification token
   "+1234567890" --token "123456"
 ```
+
+## LICENSE as of 2023/04/12
+do the fuck whatever you want with this code. if you make millions in revenues you might cut me some financial slack. appreciated.
+quality of this code is alpha. i am not liable for any damages and compensations. use at your own risk!
+check with all involved parties like openai if you are allowed to run this software the way you plan it to.
+(so for example, if this code deletes your bitcoin wallet or formats your computer or someone gets mentally or physically hurt or dies or somebody like openai sues you for illegal usage, its your problem, not mine!)
