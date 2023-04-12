@@ -57,6 +57,10 @@ async function fetchScheduledMessages() {
         sendAtCell.textContent = sendAtDate.toLocaleDateString() + ', ' + sendAtDate.toLocaleTimeString();
         row.appendChild(sendAtCell);
 
+        const recurrenceCell = document.createElement("td");
+        recurrenceCell.textContent = message.recurrence;
+        row.appendChild(recurrenceCell);
+
         const actionsCell = document.createElement("td");
         const editButton = document.createElement("button");
         editButton.textContent = "Edit";
@@ -87,7 +91,8 @@ function editScheduledMessage(message) {
     const adjustedTimestamp = sendAtDate.getTime() - timezoneOffset;
 
     scheduleForm.querySelector("input[name='sendAt']").valueAsNumber = adjustedTimestamp;
-
+    scheduleForm.querySelector("select[name='recurrence']").value = message.recurrence;
+    
     // Save the ID of the message being edited
     scheduleForm.dataset.messageId = message.id;
 }
