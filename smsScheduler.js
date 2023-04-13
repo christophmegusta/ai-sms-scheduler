@@ -8,6 +8,25 @@ const { generateMessage } = require("./chatgptClient");
 
 const twilioFromNumber = process.env.TWILIO_PHONE_NUMBER;
 
+const RECURRING_SCHEME = {
+  daily: {
+    recurringDuration: { value: 1, unit: "days" },
+    maxOccurrences: 365,
+  },
+  weekly: {
+    recurringDuration: { value: 1, unit: "weeks" },
+    maxOccurrences: 5 * 52, // 5 years in weeks
+  },
+  monthly: {
+    recurringDuration: { value: 1, unit: "months" },
+    maxOccurrences: 10 * 12, // 10 years in months
+  },
+  yearly: {
+    recurringDuration: { value: 1, unit: "years" },
+    maxOccurrences: 20, // 20 years
+  },
+};
+
 
 function parseSendAt(sendAt) {
   if (sendAt === "now") {
@@ -43,16 +62,25 @@ async function addScheduledMessage(phone, message, sendAt, recurrence) {
   console.log(`Scheduled message added with ID ${result.lastID} and sendAt ${parsedSendAt}`);
 }
 
-async function saveScheduledMessage(id, phone, message, sendAt, recurrence) {
+async function saveScheduledMessage(id, phone, message, sendAt, recurrence, occurrences) {
   const parsedSendAt = parseSendAt(sendAt);
 
   const db = await getDb();
 
-  const result = await db.run(
-    "UPDATE scheduled_sms SET phone = ?, message = ?, send_at = ?, recurrence = ? WHERE id = ?",
-    [phone, message, parsedSendAt, recurrence, id]
-  );
-  console.log(`Scheduled message saved with ID ${id} and sendAt ${parsedSendAt}`);
+  if(occurrences) {
+    const result = await db.run(
+      "UPDATE scheduled_sms SET phone = ?, message = ?, send_at = ?, recurrence = ?, occurrences = ? WHERE id = ?",
+      [phone, message, parsedSendAt, recurrence, occurrences, id]
+    );
+    console.log(`Scheduled message saved with ID ${id} and occurrences ${occurrences} and sendAt ${parsedSendAt}`);
+  }
+  else {
+    const result = await db.run(
+      "UPDATE scheduled_sms SET phone = ?, message = ?, send_at = ?, recurrence = ? WHERE id = ?",
+      [phone, message, parsedSendAt, recurrence, id]
+    );
+    console.log(`Scheduled message saved with ID ${id} and occurrences ${occurrences} and sendAt ${parsedSendAt}`);
+  }
 }
 
 async function deleteScheduledMessage(id) {
@@ -82,30 +110,29 @@ async function scheduleMessages() {
       await sendSms(message.phone, parsedMessage, twilioFromNumber);
 
       if (message.recurrence !== "once") {
-        let recurringDuration = null;
-        switch (message.recurrence) {
-          case "daily":
-            recurringDuration = { value: 1, unit: "days" };
-            break;
-          case "weekly":
-            recurringDuration = { value: 1, unit: "weeks" };
-            break;
-          case "monthly":
-            recurringDuration = { value: 1, unit: "months" };
-            break;
-          case "yearly":
-            recurringDuration = { value: 1, unit: "years" };
-            break;
-        }
+        const { recurringDuration, maxOccurrences } = RECURRING_SCHEME[message.recurrence];
 
-        if (recurringDuration) {
-          const newSendAt = moment
-            .unix(message.send_at)
-            .add(recurringDuration.value, recurringDuration.unit)
-            .unix();
+        if (message.occurrences < maxOccurrences) {
+          if (recurringDuration) {
+            const newSendAt = moment
+              .unix(message.send_at)
+              .add(recurringDuration.value, recurringDuration.unit)
+              .unix();
 
-          // Update send_at for the next scheduled message
-          await saveScheduledMessage(message.id, message.phone, message.message, newSendAt, message.recurrence);
+            // Update send_at and occurrences for the next scheduled message
+            await saveScheduledMessage(
+              message.id,
+              message.phone,
+              message.message,
+              newSendAt,
+              message.recurrence,
+              message.occurrences + 1
+            );
+          }
+        } else if (message.occurrences >= maxOccurrences) {
+          // Notify the user that the recurring message has reached its maximum occurrences
+          // This could be implemented with a function like: notifyUserMaxOccurrencesReached(message)
+          await deleteScheduledMessage(message.id);
         }
       } else {
         // Delete the scheduled message if it is set to 'once'

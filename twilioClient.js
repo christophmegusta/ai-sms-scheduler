@@ -3,11 +3,17 @@ const twilio = require("twilio");
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
+const DRY_RUN = process.env.DRY_RUN === "1";
 
 
 const client = new twilio(accountSid, authToken);
 
 const sendSms = (to, body, from, callback) => {
+  if( DRY_RUN == 1 ) {
+    console.log(`DRY_RUN: Message sent successfully to ${to} and content: ${body}`);
+    return null;
+  }
+
   return client.messages
     .create({
       body: body,

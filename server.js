@@ -36,7 +36,7 @@ app.post("/deleteScheduledMessage", async (req, res) => {
   await deleteScheduledMessage(id);
   res.status(201).send(`Scheduled message deleted for ${id}`);
 });
-  
+
 
 function startServer() {
   app.listen(port, () => {

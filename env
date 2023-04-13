@@ -4,3 +4,4 @@ TWILIO_AUTH_TOKEN=
 TWILIO_PHONE_NUMBER=#can be the activated twilio phone no. or a alphanumeric name like "Darling" which will be shown as sender.
 TWILIO_SERVICE_SID=#optional, only required for activation of own phone no. which can also be done in twilio web app.
 OPENAI_API_KEY=
+DRY_RUN=1#do not send sms for real

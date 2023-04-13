@@ -76,7 +76,7 @@ async function fetchScheduledMessages() {
                 break;
         }
         const recurrenceCell = document.createElement("td");
-        recurrenceCell.innerHTML = `<label class="ui label ${labelColor}">${message.recurrence}</label>`;
+        recurrenceCell.innerHTML = `<label class="ui label ${labelColor}">${message.recurrence} (${message.occurrences})</label>`;
         row.appendChild(recurrenceCell);
 
         const actionsCell = document.createElement("td");

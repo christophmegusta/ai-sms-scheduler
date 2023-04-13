@@ -20,6 +20,7 @@ const setupDb = async () => {
       phone TEXT,
       message TEXT,
       send_at INTEGER,
+      occurrences INTEGER DEFAULT 0,
       recurrence TEXT)`
   );
 
