@@ -57,8 +57,26 @@ async function fetchScheduledMessages() {
         sendAtCell.textContent = sendAtDate.toLocaleDateString() + ', ' + sendAtDate.toLocaleTimeString();
         row.appendChild(sendAtCell);
 
+        let labelColor = "grey";
+        switch(message.recurrence) {
+            case "once":
+                labelColor = "grey";
+                break;
+            case "daily":
+                labelColor = "olive";
+                break;
+            case "weekly":
+                labelColor = "teal";
+                break;
+            case "monthly":
+                labelColor = "blue";
+                break;
+            case "yearly":
+                labelColor = "purple";
+                break;
+        }
         const recurrenceCell = document.createElement("td");
-        recurrenceCell.textContent = message.recurrence;
+        recurrenceCell.innerHTML = `<label class="ui label ${labelColor}">${message.recurrence}</label>`;
         row.appendChild(recurrenceCell);
 
         const actionsCell = document.createElement("td");
