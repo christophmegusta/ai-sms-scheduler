@@ -21,11 +21,11 @@ const sendSms = (to, body, from, callback) => {
       from: from,
     })
     .then((message) => {
-      console.log(`Message sent successfully to ${to} with SID ${message.sid} and content: ${body}`);
+      console.log(`[${new Date().toLocaleString()}] Message sent successfully to ${to} with SID ${message.sid} and content: ${body}`);
       if(callback) callback(null, message);
     })
     .catch((error) => {
-      console.error(`Failed to send message to ${to}`);
+      console.error(`[${new Date().toLocaleString()}] Failed to send message to ${to}`);
       if(callback) callback(error, null);
     });
 };

@@ -50,34 +50,34 @@ function parseSendAt(sendAt) {
   }
 }
 
-async function addScheduledMessage(phone, message, sendAt, recurrence) {
+async function addScheduledMessage(phone, message, sendAt, recurrence, timeWindow) {
   const parsedSendAt = parseSendAt(sendAt);
 
   const db = await getDb();
 
   const result = await db.run(
-    "INSERT INTO scheduled_sms (phone, message, send_at, recurrence) VALUES (?, ?, ?, ?)",
-    [phone, message, parsedSendAt, recurrence]
+    "INSERT INTO scheduled_sms (phone, message, send_at, recurrence, time_window) VALUES (?, ?, ?, ?, ?)",
+    [phone, message, parsedSendAt, recurrence, timeWindow]
   );
   console.log(`Scheduled message added with ID ${result.lastID} and sendAt ${parsedSendAt}`);
 }
 
-async function saveScheduledMessage(id, phone, message, sendAt, recurrence, occurrences) {
+async function saveScheduledMessage(id, phone, message, sendAt, recurrence, timeWindow, occurrences) {
   const parsedSendAt = parseSendAt(sendAt);
 
   const db = await getDb();
 
   if(occurrences) {
     const result = await db.run(
-      "UPDATE scheduled_sms SET phone = ?, message = ?, send_at = ?, recurrence = ?, occurrences = ? WHERE id = ?",
-      [phone, message, parsedSendAt, recurrence, occurrences, id]
+      "UPDATE scheduled_sms SET phone = ?, message = ?, send_at = ?, recurrence = ?, occurrences = ?, time_window = ? WHERE id = ?",
+      [phone, message, parsedSendAt, recurrence, occurrences, timeWindow, id]
     );
     console.log(`Scheduled message saved with ID ${id} and occurrences ${occurrences} and sendAt ${parsedSendAt}`);
   }
   else {
     const result = await db.run(
-      "UPDATE scheduled_sms SET phone = ?, message = ?, send_at = ?, recurrence = ? WHERE id = ?",
-      [phone, message, parsedSendAt, recurrence, id]
+      "UPDATE scheduled_sms SET phone = ?, message = ?, send_at = ?, recurrence = ?, time_window = ? WHERE id = ?",
+      [phone, message, parsedSendAt, recurrence, timeWindow, id]
     );
     console.log(`Scheduled message saved with ID ${id} and occurrences ${occurrences} and sendAt ${parsedSendAt}`);
   }
@@ -96,7 +96,7 @@ async function deleteScheduledMessage(id) {
 async function scheduleMessages() {
   const db = await getDb();
 
-  const messages = await getScheduledMessagesBeforeTime();
+ const messages = await getScheduledMessagesBeforeTimeInRandomTimeWindow(null,5);
   if (messages?.length !== 0) console.log(`\nFound ${messages.length} messages to send.`);
 
   for (const message of messages) {
@@ -126,6 +126,7 @@ async function scheduleMessages() {
               message.message,
               newSendAt,
               message.recurrence,
+              message.time_window,
               message.occurrences + 1
             );
           }
@@ -164,6 +165,17 @@ async function getScheduledMessagesBeforeTime(beforeTime) {
   return messages;
 }
 
+async function getScheduledMessagesBeforeTimeInRandomTimeWindow(beforeTime) {
+  const currentTime = beforeTime || Math.floor(Date.now() / 1000);
+
+  const db = await getDb();
+  const messages = await db.all(
+    `SELECT *, ((ABS(random()) % 101) / 100.0) as R FROM scheduled_sms WHERE (send_at - (time_window * 60 * R)) <= ?`,
+    currentTime
+  );
+  return messages;
+}
+
 
 module.exports = {
   addScheduledMessage,
@@ -171,5 +183,6 @@ module.exports = {
   saveScheduledMessage,
   deleteScheduledMessage,
   getScheduledMessages,
-  getScheduledMessagesBeforeTime
+  getScheduledMessagesBeforeTime,
+  getScheduledMessagesBeforeTimeInRandomTimeWindow
 };

@@ -21,6 +21,7 @@ const setupDb = async () => {
       message TEXT,
       send_at INTEGER,
       occurrences INTEGER DEFAULT 0,
+      time_window INTEGER DEFAULT 0,
       recurrence TEXT)`
   );
 

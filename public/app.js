@@ -9,6 +9,7 @@ scheduleForm.addEventListener("submit", async (event) => {
     const sendAt = document.querySelector("input[name='sendAt']").value;
     const recurrence = document.querySelector("select[name='recurrence']").value;
     const messageId = scheduleForm.dataset.messageId;
+    const timeWindow = document.querySelector("input[name='timeWindow']").value;
 
     const sendAtDate = new Date(sendAt);
     const sendAtTimestamp = Math.floor(sendAtDate.getTime() / 1000);
@@ -19,7 +20,7 @@ scheduleForm.addEventListener("submit", async (event) => {
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ id: messageId, phone, message, sendAt: sendAtTimestamp, recurrence }),
+            body: JSON.stringify({ id: messageId, phone, message, sendAt: sendAtTimestamp, recurrence, timeWindow }),
         });
     } else {
         await fetch("/schedule", {
@@ -27,7 +28,7 @@ scheduleForm.addEventListener("submit", async (event) => {
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ phone, message, sendAt: sendAtTimestamp, recurrence }),
+            body: JSON.stringify({ phone, message, sendAt: sendAtTimestamp, recurrence, timeWindow }),
         });
     }
 
@@ -111,6 +112,8 @@ function editScheduledMessage(message) {
     scheduleForm.querySelector("input[name='sendAt']").valueAsNumber = adjustedTimestamp;
     scheduleForm.querySelector("select[name='recurrence']").value = message.recurrence;
     
+    scheduleForm.querySelector("input[name='timeWindow']").valueAsNumber = message.time_window;
+
     // Save the ID of the message being edited
     scheduleForm.dataset.messageId = message.id;
 }
@@ -118,6 +121,7 @@ function editScheduledMessage(message) {
 function newScheduledMessage() {
     scheduleForm.querySelector("input[name='phone']").value = "";
     scheduleForm.querySelector("textarea[name='message']").value = "";
+    scheduleForm.querySelector("input[name='timeWindow']").valueAsNumber = 0;
 
     const now = new Date();
     const timezoneOffset = now.getTimezoneOffset() * 60 * 1000; // Offset in milliseconds
