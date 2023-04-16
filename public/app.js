@@ -140,14 +140,7 @@ function newScheduledMessage() {
 
 
 async function deleteScheduledMessage(id) {
-    await fetch("/deleteScheduledMessage", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ id }),
-    });
-
+    await fetchPostJSON("/deleteScheduledMessage", { id });
     fetchScheduledMessages();
 }
 
