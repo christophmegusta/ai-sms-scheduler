@@ -1,6 +1,22 @@
 const scheduleForm = document.getElementById("scheduleForm");
 const messagesTable = document.getElementById("messagesTable");
 
+async function fetchJSON(url) {
+    const response = await fetch(url);
+    return response.json();
+}
+
+async function fetchPostJSON(url, data) {
+    const response = await fetch(url, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+    });
+    return response;//.json();
+}
+
 scheduleForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -15,21 +31,9 @@ scheduleForm.addEventListener("submit", async (event) => {
     const sendAtTimestamp = Math.floor(sendAtDate.getTime() / 1000);
 
     if (messageId) {
-        await fetch("/saveScheduledMessage", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ id: messageId, phone, message, sendAt: sendAtTimestamp, recurrence, timeWindow }),
-        });
+        await fetchPostJSON("/saveScheduledMessage", { id: messageId, phone, message, sendAt: sendAtTimestamp, recurrence, timeWindow });
     } else {
-        await fetch("/schedule", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ phone, message, sendAt: sendAtTimestamp, recurrence, timeWindow }),
-        });
+        await fetchPostJSON("/schedule", { phone, message, sendAt: sendAtTimestamp, recurrence, timeWindow });
     }
 
     delete scheduleForm.dataset.messageId;
@@ -39,7 +43,7 @@ scheduleForm.addEventListener("submit", async (event) => {
 });
 
 async function fetchScheduledMessages() {
-    const messages = await fetch("/messages").then((response) => response.json());
+    const messages = await fetchJSON("/messages");
     const tbody = messagesTable.querySelector("tbody");
     tbody.innerHTML = "";
 
@@ -57,6 +61,10 @@ async function fetchScheduledMessages() {
         const sendAtDate = new Date(message.send_at * 1000);
         sendAtCell.textContent = sendAtDate.toLocaleDateString() + ', ' + sendAtDate.toLocaleTimeString();
         row.appendChild(sendAtCell);
+
+        const timeWindowCell = document.createElement("td");
+        timeWindowCell.textContent = message.time_window;
+        row.appendChild(timeWindowCell);
 
         let labelColor = "grey";
         switch(message.recurrence) {
