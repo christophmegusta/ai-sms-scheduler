@@ -101,9 +101,10 @@ async function scheduleMessages() {
 
   for (const message of messages) {
     try {
-      const hit = Math.random() * 100;
-      const chance = message.send_chance;
-      if( chance < 100 && hit < chance) {
+      const hit = Math.floor(Math.random() * 100);
+      const chance = Math.floor(message.send_chance);
+
+      if(chance == 100 || (chance < 100 && hit < chance)) {
         let parsedMessage = message.message;
         if (message.message.startsWith("ai:")) {
           const prompt = message.message.slice(3);
@@ -113,7 +114,7 @@ async function scheduleMessages() {
         await sendSms(message.phone, parsedMessage, twilioFromNumber);
       }
       else {
-        console.log(`[${new Date().toLocaleString()}] Skipping message to ${message.phone} because of send chance not met (${hit} < ${chance}): ${message.message}`);
+        console.log(`[${new Date().toLocaleString()}] Skipping message to ${message.phone} because of send chance not met (${chance} == 100 || (${chance} < 100 && ${hit} < ${chance})): ${message.message}`);
       }
 
       if (message.recurrence !== "once") {
