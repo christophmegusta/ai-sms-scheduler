@@ -50,34 +50,34 @@ function parseSendAt(sendAt) {
   }
 }
 
-async function addScheduledMessage(phone, message, sendAt, recurrence, timeWindow) {
+async function addScheduledMessage(phone, message, sendAt, recurrence, sendChance, timeWindow) {
   const parsedSendAt = parseSendAt(sendAt);
 
   const db = await getDb();
 
   const result = await db.run(
-    "INSERT INTO scheduled_sms (phone, message, send_at, recurrence, time_window) VALUES (?, ?, ?, ?, ?)",
-    [phone, message, parsedSendAt, recurrence, timeWindow]
+    "INSERT INTO scheduled_sms (phone, message, send_at, recurrence, send_chance, time_window) VALUES (?, ?, ?, ?, ?, ?)",
+    [phone, message, parsedSendAt, recurrence, sendChance, timeWindow]
   );
   console.log(`Scheduled message added with ID ${result.lastID} and sendAt ${parsedSendAt}`);
 }
 
-async function saveScheduledMessage(id, phone, message, sendAt, recurrence, timeWindow, occurrences) {
+async function saveScheduledMessage(id, phone, message, sendAt, recurrence, sendChance, timeWindow, occurrences) {
   const parsedSendAt = parseSendAt(sendAt);
 
   const db = await getDb();
 
   if(occurrences) {
     const result = await db.run(
-      "UPDATE scheduled_sms SET phone = ?, message = ?, send_at = ?, recurrence = ?, occurrences = ?, time_window = ? WHERE id = ?",
-      [phone, message, parsedSendAt, recurrence, occurrences, timeWindow, id]
+      "UPDATE scheduled_sms SET phone = ?, message = ?, send_at = ?, recurrence = ?, occurrences = ?, send_chance = ?, time_window = ? WHERE id = ?",
+      [phone, message, parsedSendAt, recurrence, occurrences, sendChance, timeWindow, id]
     );
     console.log(`Scheduled message saved with ID ${id} and occurrences ${occurrences} and sendAt ${parsedSendAt}`);
   }
   else {
     const result = await db.run(
-      "UPDATE scheduled_sms SET phone = ?, message = ?, send_at = ?, recurrence = ?, time_window = ? WHERE id = ?",
-      [phone, message, parsedSendAt, recurrence, timeWindow, id]
+      "UPDATE scheduled_sms SET phone = ?, message = ?, send_at = ?, recurrence = ?, send_chance = ?, time_window = ? WHERE id = ?",
+      [phone, message, parsedSendAt, recurrence, sendChance, timeWindow, id]
     );
     console.log(`Scheduled message saved with ID ${id} and occurrences ${occurrences} and sendAt ${parsedSendAt}`);
   }
@@ -96,18 +96,25 @@ async function deleteScheduledMessage(id) {
 async function scheduleMessages() {
   const db = await getDb();
 
- const messages = await getScheduledMessagesBeforeTimeInRandomTimeWindow(null,5);
+ const messages = await getScheduledMessagesBeforeTimeInRandomTimeWindow();
   if (messages?.length !== 0) console.log(`\nFound ${messages.length} messages to send.`);
 
   for (const message of messages) {
     try {
-      let parsedMessage = message.message;
-      if (message.message.startsWith("ai:")) {
-        const prompt = message.message.slice(3);
-        parsedMessage = await generateMessage(prompt);
+      const hit = Math.random() * 100;
+      const chance = message.send_chance;
+      if( chance < 100 && hit < chance) {
+        let parsedMessage = message.message;
+        if (message.message.startsWith("ai:")) {
+          const prompt = message.message.slice(3);
+          parsedMessage = await generateMessage(prompt);
+        }
+  
+        await sendSms(message.phone, parsedMessage, twilioFromNumber);
       }
-
-      await sendSms(message.phone, parsedMessage, twilioFromNumber);
+      else {
+        console.log(`[${new Date().toLocaleString()}] Skipping message to ${message.phone} because of send chance not met (${hit} < ${chance}): ${message.message}`);
+      }
 
       if (message.recurrence !== "once") {
         const { recurringDuration, maxOccurrences } = RECURRING_SCHEME[message.recurrence];
@@ -126,6 +133,7 @@ async function scheduleMessages() {
               message.message,
               newSendAt,
               message.recurrence,
+              message.send_chance,
               message.time_window,
               message.occurrences + 1
             );

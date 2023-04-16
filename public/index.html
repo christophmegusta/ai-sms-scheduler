@@ -29,6 +29,10 @@
                 <input type="number" name="timeWindow" min="0" max="1440" step="1" value="0" required>
             </div>
             <div class="field">
+                <label>Send Chance (in percent, 0 - 100)</label>
+                <input type="number" name="sendChance" min="0" max="100" step="1" value="100" required>
+            </div>
+            <div class="field">
                 <label>Recurrence</label>
                 <select name="recurrence" required>
                     <option value="once">Once</option>
@@ -49,6 +53,7 @@
                     <th>Message</th>
                     <th>Send At</th>
                     <th>Time Window</th>
+                    <th>Send Chance</th>
                     <th>Recurrence</th>
                     <th>Actions</th>
                 </tr>

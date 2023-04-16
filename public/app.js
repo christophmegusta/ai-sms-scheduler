@@ -26,14 +26,15 @@ scheduleForm.addEventListener("submit", async (event) => {
     const recurrence = document.querySelector("select[name='recurrence']").value;
     const messageId = scheduleForm.dataset.messageId;
     const timeWindow = document.querySelector("input[name='timeWindow']").value;
+    const sendChance = document.querySelector("input[name='sendChance']").value;
 
     const sendAtDate = new Date(sendAt);
     const sendAtTimestamp = Math.floor(sendAtDate.getTime() / 1000);
 
     if (messageId) {
-        await fetchPostJSON("/saveScheduledMessage", { id: messageId, phone, message, sendAt: sendAtTimestamp, recurrence, timeWindow });
+        await fetchPostJSON("/saveScheduledMessage", { id: messageId, phone, message, sendAt: sendAtTimestamp, recurrence, sendChance, timeWindow });
     } else {
-        await fetchPostJSON("/schedule", { phone, message, sendAt: sendAtTimestamp, recurrence, timeWindow });
+        await fetchPostJSON("/schedule", { phone, message, sendAt: sendAtTimestamp, recurrence, sendChance, timeWindow });
     }
 
     delete scheduleForm.dataset.messageId;
@@ -65,6 +66,10 @@ async function fetchScheduledMessages() {
         const timeWindowCell = document.createElement("td");
         timeWindowCell.textContent = message.time_window;
         row.appendChild(timeWindowCell);
+
+        const sendChanceCell = document.createElement("td");
+        sendChanceCell.textContent = message.send_chance + "%";
+        row.appendChild(sendChanceCell);
 
         let labelColor = "grey";
         switch(message.recurrence) {
@@ -122,6 +127,8 @@ function editScheduledMessage(message) {
     
     scheduleForm.querySelector("input[name='timeWindow']").valueAsNumber = message.time_window;
 
+    scheduleForm.querySelector("input[name='sendChance']").valueAsNumber = message.send_chance;
+
     // Save the ID of the message being edited
     scheduleForm.dataset.messageId = message.id;
 }
@@ -130,6 +137,7 @@ function newScheduledMessage() {
     scheduleForm.querySelector("input[name='phone']").value = "";
     scheduleForm.querySelector("textarea[name='message']").value = "";
     scheduleForm.querySelector("input[name='timeWindow']").valueAsNumber = 0;
+    scheduleForm.querySelector("input[name='sendChance']").valueAsNumber = 100;
 
     const now = new Date();
     const timezoneOffset = now.getTimezoneOffset() * 60 * 1000; // Offset in milliseconds
