@@ -1,6 +1,7 @@
 require("dotenv").config();
 const { parse } = require("date-fns");
 const moment = require("moment");
+const mustache = require('mustache');
 
 const { getDb } = require("./db");
 const { sendSms } = require("./twilioClient");
@@ -96,25 +97,40 @@ async function deleteScheduledMessage(id) {
 async function scheduleMessages() {
   const db = await getDb();
 
- const messages = await getScheduledMessagesBeforeTimeInRandomTimeWindow();
+  const messages = await getScheduledMessagesBeforeTimeInRandomTimeWindow();
   if (messages?.length !== 0) console.log(`\nFound ${messages.length} messages to send.`);
 
   for (const message of messages) {
     try {
+      const now = new Date();
       const hit = Math.floor(Math.random() * 100);
       const chance = Math.floor(message.send_chance);
 
+      const theMessage = mustache.render(message.message, {
+        weekday:now.toLocaleString('default', { weekday: 'long' }),
+        year:now.getFullYear(),
+        month: String(now.getMonth() + 1).padStart(2, '0'),
+        day:String(now.getDate()).padStart(2, '0'),
+        hour:String(now.getHours()).padStart(2, '0'),
+        minute:String(now.getMinutes()).padStart(2, '0'),
+        second:String(now.getSeconds()).padStart(2, '0'),
+        millisecond:String(now.getMilliseconds()).padStart(3, '0'),
+        random: Math.floor(Math.random() * 1000000000) % 100,
+        from: twilioFromNumber,
+        to: message.phone
+      });
+
       if(chance == 100 || (chance < 100 && hit < chance)) {
-        let parsedMessage = message.message;
-        if (message.message.startsWith("ai:")) {
-          const prompt = message.message.slice(3);
+        let parsedMessage = theMessage;
+        if (theMessage.startsWith("ai:")) {
+          const prompt = theMessage.slice(3).trim();
           parsedMessage = await generateMessage(prompt);
         }
   
         await sendSms(message.phone, parsedMessage, twilioFromNumber);
       }
       else {
-        console.log(`[${new Date().toLocaleString()}] Skipping message to ${message.phone} because of send chance not met (${chance} == 100 || (${chance} < 100 && ${hit} < ${chance})): ${message.message}`);
+        console.log(`[${new Date().toLocaleString()}] Skipping message to ${message.phone} because of send chance not met (${chance} == 100 || (${chance} < 100 && ${hit} < ${chance})): ${theMessage}`);
       }
 
       if (message.recurrence !== "once") {
@@ -149,7 +165,7 @@ async function scheduleMessages() {
         await deleteScheduledMessage(message.id);
       }
     } catch (error) {
-      console.error(`Error sending message to ${message.phone}:`, error);
+      console.error(`[${new Date().toLocaleString()}] Error sending message to ${message.phone}:`, error);
     }
   }
 }
