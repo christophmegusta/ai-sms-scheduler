@@ -9,6 +9,7 @@ messages can be scheduled manually in the CLI with `npm start add ...` or the we
 
 
 ## Prerequesites and setup
+
 install node packages and dependencies:
 ```
 npm install
@@ -28,7 +29,17 @@ run server with
 ```
 npm start server
 ```
-access in browser with http://127.0.0.1:3000
+access in browser with http://127.0.0.1:3000 if you did the next step.
+
+optional: download web frontend and build it.
+```
+git clone https://github.com/christophmegusta/ai-sms-scheduler-frontend.git frontend
+cd frontend
+npm install
+npm run build
+cd ..
+```
+the application expects the built frontend files in public/ folder. its a symlink on linux/unix/mac but on windows this might not work. in that case copy files from frontend/dist/* to public/ after frontend was build in step above.
 
 
 run cli tool to send sms
