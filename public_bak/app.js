@@ -1,8 +1,19 @@
 const scheduleForm = document.getElementById("scheduleForm");
 const messagesTable = document.getElementById("messagesTable");
 
+
+async function mySignature() {
+    return "1234567890";
+}
+
 async function fetchJSON(url) {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+            "Signature": await mySignature(),
+        },
+    });
     return response.json();
 }
 
@@ -11,6 +22,7 @@ async function fetchPostJSON(url, data) {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
+            "Signature": await mySignature(),
         },
         body: JSON.stringify(data),
     });
