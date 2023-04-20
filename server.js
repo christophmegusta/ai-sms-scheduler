@@ -20,12 +20,12 @@ app.use(express.static("public"));
 
 function verifyToken(req, res, next) {
   const authHeader = req.headers.authorization;
-  console.log("authHeader", authHeader);
   if (authHeader) {
     const token = authHeader.split(' ')[1];
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
       if (err) {
+        console.log("jwt verification failed", err);
         return res.sendStatus(403);
       }
 
@@ -68,7 +68,6 @@ app.post('/verifySolana', async (req, res) => {
 });
 
 app.get("/messages", verifyToken, async (req, res) => {
-  console.log("req.headers", req.headers);
   const messages = await getScheduledMessages();
   res.send(messages);
 });
