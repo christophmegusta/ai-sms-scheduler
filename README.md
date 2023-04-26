@@ -6,7 +6,7 @@ by starting a message with "ai:" the program will treat the parts following the 
 to run this software the `npm start run` scheduler should be running in the background or `npm start run-once` must be frequently executed by a CRON job like every 5 minutes. this will check if there are any messages due and will send those.
 
 messages can be scheduled manually in the CLI with `npm start add ...` or the webinterface at http://localhost:3000 (after setting up 
-frontend repo) can be used after 
+frontend repo https://github.com/christophmegusta/ai-sms-scheduler-frontend.git) can be used after 
 starting the server with `npm start server`. the server command does *not* run the scheduler, this must still be done separately as explained above.
 
 
